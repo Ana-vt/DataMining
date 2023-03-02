@@ -1,0 +1,189 @@
+---
+title: "CS 422 HW4"
+author: "Ana Velasco"
+output:
+  html_notebook:
+    toc: yes
+    toc_float: yes
+  html_document:
+    toc: yes
+    df_print: paged
+---
+### Import libraries
+
+library(dplyr)
+
+
+### Part 2.1-A
+```{r}
+setwd("C:/Users/anave/OneDrive - Universidad Politécnica de Madrid/MUIT/ERASMUS/1_PRIMER_CUATRI/CS422DATAMINING/Assignment4")
+
+train.df <- read.csv("adult-train.csv", header=TRUE, sep=",")
+test.df <- read.csv("adult-test.csv", header=TRUE, sep=",")
+
+#Train
+sum(train.df$occupation == "?")
+indexrow <- which(train.df$occupation == "?")
+
+##To see which attributes have ?
+#str(train.df)
+
+deletedrows <- c(which(train.df$workclass == "?"), which(train.df$occupation == "?"),  which(train.df$native_country == "?"))
+train.df <- train.df[-deletedrows,]
+
+dim(train.df)
+
+#Test
+sum(test.df$occupation == "?")
+indexrow2 <- which(test.df$occupation == "?")
+#str(test.df)
+deletedrows2 <- c(which(test.df$workclass == "?"), which(test.df$occupation == "?"),  which(test.df$native_country == "?"))
+test.df <- test.df[-deletedrows2,]
+
+dim(test.df)
+
+
+```
+
+### Part 2.1-B.
+
+```{r}
+library(rpart)
+library(rpart.plot)
+set.seed(1122)
+model <- rpart(income~ ., data=train.df, method = "class")
+summary(model)
+rpart.plot(model, extra = 104, fallen.leaves = T, type = 4, main = "Decision Tree Income")
+```
+### Part 2.1-B i)
+
+The top three important predictors can be guessed by seeing the summary of the model.In Variable importance" the ones with the highest importance are: relationship, marital_status and capital_gain.
+
+### Part 2.1-B ii)
+
+The first split is perform on the relationship predictor.
+The predicted class of the first node is <=50k, as can be seen in the root node.
+The distribution of observations between “<=50K” and “>50K” classes at the first node is 75% and 25%.
+
+### Part 2.1-C
+```{r}
+library(caret)
+
+prediction <- predict(model, newdata=test.df, type="class")
+
+confusionMatrix(prediction, as.factor(test.df$income))
+table(test$income) 
+```
+### Part 2.1-C i)
+
+As we have an imbalance test dataset (much more observations of class “<=50” and less of ">50” it gives us more information the balanced accuracy. In this case, the balanced accuracy of the model is 0.7259, which is a good value (higher than 0,5).
+
+### Part 2.1-C ii)
+
+For the same reason, the balanced error rate gives us more information. In this case, the balanced error rate is 0.2741 (1 - 0.7259)
+
+### Part 2.1-C iii)
+
+Sensitivity refers to the true positives and specificity refers to the true negatives. In this case, the sensitivity (0.9482) is really high (12435) as we have more "<=50K" in our test dataset. For the same reason, the specificity is low (0.5035) as the number of ">=50K" in our test data set is really low(3846). Therefore, is better to look at the balanced accuracy than the accuracy.
+
+### Part 2.1-C iv)
+```{r}
+library(ROCR)
+
+rocr <- predict(model, newdata=test.df, type="prob")[,2]
+f.pred <- prediction(rocr, test.df$income)
+
+plot(performance(f.pred, "tpr", "fpr"), colorize=T, lwd=3)
+abline(0,1)
+auc <- performance(f.pred, measure = "auc")
+cat(paste("The area under curve (AUC) for the full tree is ", 
+          round(auc@y.values[[1]], 3)))
+
+```
+The AUC of the ROC curve simply means the "Area Under the Curve" of the "Receiver Operation Characteristics Curve". It represents the ability of a classifier to distinguish between classes. The higher AUC, the better performance of the model when distinguishing between positive(<=50K) and negative(>=50K) classes. In this case, the AUC is 0,843 which is high (close to 1). As seen in the figure, it increases vertically close to the y axis and then it reaches a point in which it starts to grow horizontally in the direction of the x axis. This figure should. Just by looking at the ROC you can tell that the AUC is high and that the model fits the data well.
+
+### Part 2.1-D
+```{r}
+printcp(model)
+```
+The CP is used to select the optimal size of the decision tree in order to make only the necessary splits. If the cost of adding another variable is higher than the cp, then we should not continue the tree.
+The 'root node error' indicates us the error if the tree was pruned to node 1, which in this case is 0,244893.
+The'nsplit' indicated the number of split for each tree.
+The tree would cleary benefit from a pruning as there is an imbalance between the number of positive and negative classes.
+The CP selected for pruning is the one with the lowest cross validation error 'xerror' which in this case corresponds to the fourth value of cp = 0,01.
+
+### Part 2.1-E
+```{r}
+set.seed(1122)
+```
+### Part 2.1-E i)
+```{r}
+print(sum(train.df$income == "<=50K"))
+
+print(sum(df.train$income == ">50K"))
+
+```
+There are 22653 observations <=50K and 7508 >=50K
+
+### Part 2.1-E ii)
+```{r}
+less <- which(train.df$income == "<=50K")
+greater <- which(train.df$income == ">50K")
+
+sampleless <- sample(less, length(greater))
+samplegreater <- sample(greater, length(greater))
+
+newtrain.df <- train.df[c(sampleless, samplegreater), ]
+
+sum(newtrain.df$income == "<=50K")
+sum(newtrain.df$income == "<=50K")
+
+```
+### Part 2.1-E iii)
+```{r}
+model2 <-rpart(income ~. ,data=newtrain.df, method = "class")
+
+rpart.plot(model2, extra = 104, fallen.leaves = T, type = 4, main = "Second Decision Tree Income")
+
+newprediction <- predict(model2, newdata=test.df, type="class")
+
+confusionMatrix(newprediction, as.factor(test.df$income))
+
+table(test$income) 
+
+```
+### Part 2.1-E iii) I)
+
+The balanced accuracy is 0.8029
+
+### Part 2.1-E iii) II)
+
+The balanced error rate is 1- balanced accuracy = 1- 0.8029 = 0.1971
+
+### Part 2.1-E iii) III)
+
+The sensitivity is 0.7777   and the specificity is 0.8281
+
+### Part 2.1-E iii) IV)
+```{r}
+rocr2 <- predict(model2, newdata=test.df, type="prob")[,2]
+f.pred2 <- prediction(rocr2, test.df$income)
+
+plot(performance(f.pred2, "tpr", "fpr"), colorize=T, lwd=3)
+abline(0,1)
+auc2 <- performance(f.pred2, measure = "auc")
+cat(paste("The area under curve (AUC) for the full tree is ", 
+          round(auc2@y.values[[1]], 3)))
+
+```
+### Part 2.1-F 
+
+The balanced accuracy for the first model (c) is 0,7259 and for the second (e) is 0,8029. It can be seen that the second model has higher balanced accuracy because it has been undersampled due to the existing imbalance.
+
+The sensitivity is 0,9482 and 0,7777 for the first and second model respectively. It has decreased with the second model. This can be easily explained: reducing the number of positive classes by undersampling, the sensitivity (positive class) is going to be lower. 
+
+The specificity is 0,5035 and 0,8281 for the first and the second model respectively. It has increased with the second model. This is due to the undersampling, before the modification there were less negative classes and when sampling, we achieved a number of negative classes with the length of the positive (higher).
+
+The AUC is 0,843 and 0,845 for the first and the second model respectively. It has slightly increased but in both models the classifier distinguish well between the positive and negative classes, although the number of positive and negative classes have changed.
+
+Finally, the positive predicted value which is  “<=50” is 0,8543 and 0,9328 for the first and the second model respectively. The PPV measures the ratio of true positive predictions considering all positive predictions. This means, that even though the first model has more positive class samples, the second is more precise as it can get more true positives from a smaller set of samples.

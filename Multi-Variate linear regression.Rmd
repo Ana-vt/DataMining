@@ -1,0 +1,164 @@
+---
+title: "CS 422 - Homework 2"
+author: "Ana Velasco"
+output:
+  html_notebook:
+    toc: yes
+    toc_float: yes
+  html_document:
+    toc: yes
+    df_print: paged
+---
+### Import Libraries
+```{r}
+library(dplyr)
+library(psych)
+library(ISLR)
+```
+
+### Part 2.1
+```{r}
+set.seed(1122)
+index <- sample(1:nrow(Auto), 0.95*dim(Auto)[1])
+train.df <- Auto[index,]
+test.df <- Auto[-index,]
+
+```
+### Part 2.1-A
+```{r}
+train.df
+model <-lm(mpg ~ ., data=train.df[,1:8])
+```
+### Part 2.1-A-i
+
+Name refers to the name of the vehicle. This means that is a qualitative variable and each of the strings will be counted as valid predictors. This will lead to an inaccurate model with distortion caused by the name predictor, that does not provide any additional value.
+
+### Part 2.1-A-ii
+```{r}
+sum <-summary(model)
+sum
+paste("R-sq value is: ", sprintf("%.2f", sum$r.squared))
+paste("Adjusted R-sq value is: ", sprintf("%.2f", sum$adj.r.squared))
+
+RSS  <-sum((train.df$mpg - model$fit)^2)
+### n= total observations in trainset//residuals
+### p= number of model parameters -1//coefficients
+n <-dim(train.df)[1]
+p <-dim(train.df)[2] - 1
+valueRSE <-sqrt(RSS/(n-p-1))
+valueRMSE <-sqrt(RSS/n)
+
+paste("RSE is: ", sprintf("%.2f", valueRSE))
+paste("RMSE is: ", sprintf("%.2f", valueRMSE))
+
+```
+### Part 2.1-A-iii
+```{r}
+plot(model, 1)
+```
+### Part 2.1-A-iv
+```{r}
+hist(sum$residuals)
+```
+Residuals show a gaussian distribution. So it can be deduced that the residuals have the same variance among all the observations. We can say that the regression model does explain all the trends in the dataset as the residuals are a random dataset.
+
+### Part 2.1-B-i
+
+```{r}
+model2 <- lm(mpg ~ ., data=train.df[c("mpg", "weight", "year", "origin")])
+```
+### Part 2.1-B-ii
+
+```{r}
+sum2 <- summary(model2)
+sum2
+paste("R-sq value is: ", sprintf("%.2f", sum2$r.squared))
+paste("Adjusted R-sq value is: ", sprintf("%.2f", sum2$adj.r.squared))
+
+RSS  <-sum((train.df$mpg - model2$fit)^2)
+### n= total observations in trainset//residuals
+### p= number of model parameters -1//coefficients
+n <-dim(train.df)[1]
+p <-dim(train.df)[2] - 1
+valueRSE <-sqrt(RSS/(n-p-1))
+valueRMSE <-sqrt(RSS/n)
+
+paste("RSE is: ", sprintf("%.2f", valueRSE))
+paste("RMSE is: ", sprintf("%.2f", valueRMSE))
+```
+### Part 2.1-B.iii
+
+```{r}
+plot(model2, 1)
+```
+### Part 2.1-B.iv
+
+```{r}
+hist(sum2$residuals)
+```
+It can be seen that the second model created also follows a gaussian distribution. It can be appreciated that more residuals appear which means that we are making more errors in comparison with the first model.
+### Part 2.1-B.v
+On the one hand, the summaries are slightly different. The second model has higher values of R2, adjusted R2, RSE and RMSE because a few more errors are being made. In the case of a large amount of data, the trade-off between the little errors and the velocity of computation that we achieve reducing the number of predictors would be better.The difference in errors is barely perceived. Both models make similar predictions.
+
+On the other hand, the residuals of both models explain all the trends in the dataset as the residuals are a random dataset (they follow a gaussian distribution).
+
+Therefore, if the error difference between models is barely noticeable, with the second model we are using less than the half of predictors (just 3) so it will go faster (it would be more noticeable if the input data would be bigger). 
+For all these reasons, the second model is better.
+
+### Part 2.1-C 
+```{r}
+prediction <- predict(model2, newdata= test.df)
+
+prediction.df <- data.frame(prediction, test.df$mpg)
+prediction.df 
+```
+
+### Part 2.1-D
+```{r}
+conf <- predict(model2, newdata = test.df, interval = 'confidence')
+conf <- data.frame(conf)
+
+conf.df <- data.frame(prediction, test.df$mpg, confidence$lwr, confidence$upr)
+
+matchesf <- function(x) {
+  if(x[2]>=x[3] && x[2]<=x[4])
+    return(1)
+  else
+    return(0)
+}
+matchconf <- apply(conf.df, 1, matchesf)
+
+conf.df <- cbind(conf.df, matchconf)
+conf.df
+
+countedconf <- count(filter(confidence.df, matchconf == 1))
+
+paste("Total observations correctly predicted: ", sprintf("%.0f",countedconf ))
+```
+### Part 2.1-E
+```{r}
+pred <- predict(model2, newdata = test.df, interval = 'prediction')
+pred <- data.frame(pred)
+
+pred.df <- data.frame(pred$fit, test.df$mpg, pred$lwr, pred$upr)
+
+matchpred <- apply(pred.df, 1, matchesf)
+
+pred.df <- cbind(pred.df, matchpred)
+pred.df
+
+countedpred <- count(filter(pred.df, matchpred == 1))
+
+paste("Total observations correctly predicted: ", sprintf("%.0f",countedpred ))
+```
+
+### Part 1-F-i
+
+On the one hand, from D we obtain 7 matches.
+On the other hand, from E we obtain 20 matches.
+Therefore, E has 13 more matches than D.
+
+### Part 1-F-ii
+
+It is logical that E has more matches than D since we are performing a prediction interval, which is wider in range than the confidence interval. This allows to have more predictions and therefore more possibilities to find a match between them.
+

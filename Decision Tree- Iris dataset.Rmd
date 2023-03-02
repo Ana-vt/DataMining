@@ -1,0 +1,28 @@
+---
+title: "CS 422 - Homework3"
+author: "Ana Velasco"
+output:
+  html_notebook:
+    toc: yes
+    toc_float: yes
+  html_document:
+    toc: yes
+    df_print: paged
+---
+
+### Libraries
+```{r}
+library(rpart)
+library(rpart.plot)
+library(datasets)
+```
+
+### Create decision tree model
+
+```{r}
+iris.df<- data.frame(iris)
+summary(iris)
+
+model <- rpart( Species~ .,data=iris.df,method= "class")
+rpart.plot(model, extra=104, fallen.leaves=T, type=4, main="Iris Dataset Decision Tree")
+```

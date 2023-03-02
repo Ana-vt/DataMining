@@ -1,0 +1,150 @@
+---
+title: "CS 422 HW8"
+author: "Ana Velasco"
+output:
+  html_notebook:
+    toc: yes
+    toc_float: yes
+  html_document:
+    toc: yes
+    df_print: paged
+---
+### Libraries
+```{r}
+#install.packages("dyplr")
+#install.packages("rlang")
+#install.packages("ggplot2", dependencies=T)
+library(ggplot2)
+library(dplyr)
+library(rpart)
+library(rpart.plot)
+library(psych)
+library(reshape2)
+library(caret)
+library(pROC)
+library(corrplot)
+library(randomForest)
+library(e1071)
+library(keras)
+rm(list=ls())
+
+setwd("C:/Users/anave/OneDrive - Universidad Politécnica de Madrid/MUIT/ERASMUS/1_PRIMER_CUATRI/CS422DATAMINING/Assignment8")
+```
+
+### Part 2.1-A i)
+
+The file19.txt contains the dentition of mammals. Those are incisors, canines, premolars and molars in both top and bottom positions. Mammals have similar number of top and bottoms canines, premolars and molars. Therefore, those lower teeth can be removed. However, it would be necessary to see the correlation to verify this.
+
+### Part 2.1-A ii
+
+The process of clustering usually involves standardization to rescale values in order to share a common scale. However, in this dataset, all variables can be directly compared as they measure the number of an specific teeth.
+
+### Part 2.1-A iii)
+
+```{r}
+df <- read.table("file19.txt", comment.char = "#", skip= 20, strip.white = T, header = T, fill = T, stringsAsFactors = F)
+
+#Correlation to see which attributes can be removed
+pairs.panels(df[])
+
+#Indeed, the correlation between C-c, P-p, M-m is 0.91, 0.93, 0.93 respectively. So now they can be removed.
+#df$c <- NULL
+#df$p <- NULL
+#df$m <- NULL
+
+#write.csv(df, "file19def.csv", quote=F, row.names=F)
+
+file19def<- df[,c(1,2,3,4,6,8)]
+file19defscale <- scale(file19def[,2:ncol(file19def)])
+
+write.csv(file19def, file = "file19def.csv", row.names = F, quote=F)
+
+df<-read.csv("file19def.csv")
+
+```
+### Part 2.1-B i)
+
+```{r}
+#Using the silhouette graph
+
+#install.packages("cluster", dependencies=T)
+library(cluster)
+#install.packages("NbClust", dependencies=T)
+library(NbClust)
+#install.packages("factoextra", dependencies=T)
+library(factoextra)
+#install.packages("ggpubr", dependencies=T)
+library(ggpubr)
+
+fviz_nbclust(df[2:6], kmeans, method="wss")
+fviz_nbclust(df[2:6], kmeans, method="silhouette")
+
+#The graphs tell us that the optimal number of clusters is 9
+
+```
+### Part 2.1-B ii) 
+```{r}
+k <- kmeans(file19defscale, centers = 9)
+
+fviz_cluster(k, data=file19defscale, main = "cluster")
+
+```
+
+### Part 1-B iii)
+```{r}
+print(k)
+
+# K-means clustering with 9 clusters of sizes 1, 7, 5, 11, 17, 11, 5, 1, 8
+```
+### Part 2.1-B iv)
+```{r}
+cat("The total SSE is: ",k$tot.withinss)
+```
+### Part 2.1-B v)
+```{r}
+cat("The SSE for the cluster number 1 is: ", k$withinss[1], "\n")
+cat("The SSE for the cluster number 1 is: ", k$withinss[2], "\n")
+cat("The SSE for the cluster number 1 is: ", k$withinss[3], "\n")
+cat("The SSE for the cluster number 1 is: ", k$withinss[4], "\n")
+cat("The SSE for the cluster number 1 is: ", k$withinss[5], "\n")
+cat("The SSE for the cluster number 1 is: ", k$withinss[6], "\n")
+cat("The SSE for the cluster number 1 is: ", k$withinss[7], "\n")
+cat("The SSE for the cluster number 1 is: ", k$withinss[8], "\n")
+cat("The SSE for the cluster number 1 is: ", k$withinss[9], "\n")
+
+```
+
+### Part 2.1-B vi)
+```{r}
+df[which(k$cluster == 1),]
+df[which(k$cluster == 2),]
+df[which(k$cluster == 3),]
+df[which(k$cluster == 4),]
+df[which(k$cluster == 5),]
+df[which(k$cluster == 6),]
+df[which(k$cluster == 7),]
+df[which(k$cluster == 8),]
+df[which(k$cluster == 9),]
+
+#It can be seen that in cluster 1 there is only one item (Walrus) 54 times. In Cluster 2 with 7 species, all the attributes, have the same I, i, C, P and M so they are well grouped. Then in cluster 3, with 5 species, C values are the same and most of I, i and M are the same (except for 1) so they are also well grouped. In cluster 4 with 11 species, C and M are the same 1,3 respectively). Cluster 5 with 17 species, C and I values are the same (1,3 respectively). Cluster 6 has 17 species but all C, I and i values are the same (1,3,3). Cluster 7 has 11 entries with same I, i, C and M values (1,1,0,3). Cluster 8 only has Armadillo and Cluster 9 has 8 animals with same i and M (1,3). Overall, clustering has gone well by grouping mammals with same characteristics in the same cluster, however, there are some WALRUS and ARMADILLO that are different from everyone else and they form 1 cluster each.
+```
+
+### Part 2.2-A 
+
+### Part 2.2-B i)
+
+### Part 2.2-B ii)
+
+### Part 2.2-C i)
+
+### Part 2.2-C ii)
+
+### Part 2.2-C iii)
+
+### Part 2.2-D i)
+
+### Part 2.2-D ii)
+
+### Part 2.2-E i)
+
+### Part 2.2-E ii)

@@ -1,0 +1,103 @@
+---
+title: "CS 422 HW5"
+author: "Ana Velasco"
+output:
+  html_notebook:
+    toc: yes
+    toc_float: yes
+  html_document:
+    toc: yes
+    df_print: paged
+---
+
+### Libraries
+```{r}
+library(arules)
+library(arulesViz)
+library(lsa)
+library(dplyr, verbose=F)
+rm(list=ls())
+```
+
+### Part 2.1-A.
+
+```{r}
+setwd("C:/Users/anave/OneDrive - Universidad Politécnica de Madrid/MUIT/ERASMUS/1_PRIMER_CUATRI/CS422DATAMINING/Assignment5")
+
+products <- read.csv("products.csv", header=F)
+
+for (i in c(1, 5, 20, 75)){
+  name <- paste("tr-",i,"k.csv", sep = "")
+  products.df <-read.csv(name, header=F, fill=T)[,-1]
+  
+  can<- function(x){
+    x <- products$V2[match(x,products$V1)]
+  }
+  products.can <-data.frame(apply(products.df,2, FUN=can))
+  colnames(products.can) <- NULL
+  
+  name.can <-paste("tr-", i, "k-canonical.csv", sep="")
+  write.table(products.can, name.can, row.names=FALSE, quote=FALSE, sep=",", na="")
+}
+```
+### Part 2.1-B
+In this section I will import the transactions from the file created in section 2.1-A. 
+
+Then, I will find the frequent itemsets. An itemset is frequent if the support of that itemset is greater or equal than the minsup (minimum support). For all the 4 data sets, this value has been achieved by gradually descending from high values, until sufficient patterns and about 20 strong rules have been found. 
+
+Finally I will discover association rules within the frequent itemsets. For that purpose, rules are inspected sorting them by confidence. 
+```{r}
+# 1K Transactions
+#Frequent itemsets
+trans1k <- read.transactions("tr-1k-canonical.csv", sep=",")
+summary(trans1k)
+freq.itemsets1k <- apriori(trans1k, parameter=list(support=0.027, target="frequent itemsets"), control=list(verbose=F))
+inspect(sort(freq.itemsets1k, by="count", decreasing=T))
+
+#Association rules
+rules1k <- apriori(trans1k, parameter=list(support=0.027, conf=0.75), control=list(verbose=F))
+inspect(sort(rules1k, by="confidence", decreasing=T))
+
+# 5K Transactions
+#Frequent itemsets
+trans5k <- read.transactions("tr-5k-canonical.csv", sep=",")
+freq.itemsets5k <- apriori(trans5k, parameter=list(support=0.024, target="frequent itemsets"), control=list(verbose=F))
+inspect(sort(freq.itemsets5k, by="count", decreasing=T))
+
+#Association rules
+rules5k <- apriori(trans5k, parameter=list(support=0.024, conf=0.75), control=list(verbose=F))
+inspect(sort(rules5k, by="confidence", decreasing=T))
+
+# 20K Transactions
+#Frequent itemsets
+trans20k <- read.transactions("tr-20k-canonical.csv", sep=",")
+freq.itemsets20k <- apriori(trans20k, parameter=list(support=0.027, target="frequent itemsets"), control=list(verbose=F))
+inspect(sort(freq.itemsets20k, by="count", decreasing=T))
+#Association rules
+rules20k <- apriori(trans20k, parameter=list(support=0.027, conf=0.75), control=list(verbose=F))
+inspect(sort(rules20k, by="confidence", decreasing=T))
+
+# 75K Transactions
+#Frequent itemsets
+trans75k <- read.transactions("tr-75k-canonical.csv", sep=",")
+freq.itemsets75k <- apriori(trans75k, parameter=list(support=0.019, target="frequent itemsets"), control=list(verbose=F))
+inspect(sort(freq.itemsets75k, by="count", decreasing=T))
+#Association rules
+rules75k <- apriori(trans75k, parameter=list(support=0.019, conf=0.75), control=list(verbose=F))
+inspect(sort(rules75k, by="confidence", decreasing=T))
+
+```
+
+### Part 2.1-C
+
+It can clearly be seen that the value of minsup variates depending on the data set. 
+Both data sets with 1K and 20K transactions needed a higher minsup (0.027) in order to obtain a confidence higher than 0.75 (about 20 strong rules).
+However, both 5k and 75k data sets, required a lower minsup (0.024 and 0.019 respectively)
+
+### Part 2.1-D-i
+
+The most frequently purchased item/itemset in the 75K transactions data set, it is purchased in 8191 transactions and corresponds to {Coffee Eclair}. 
+
+### Part 2.1-D-ii
+
+The least frequently purchased item/itemset in the 75K transactions data set, it is purchased in 1744 transactions and corresponds to {Apple Croissant, Apple Danish,Apple Tart}

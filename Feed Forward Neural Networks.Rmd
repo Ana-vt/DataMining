@@ -1,0 +1,227 @@
+---
+title: "Homework 7"
+author: "Ana Velasco"
+output:
+   html_notebook:
+      toc: yes
+      toc_float: yes
+   html_document:
+      toc: yes
+      df_print: paged
+---
+```{r}
+library(keras)
+library(dplyr)
+library(caret)
+library(rpart)
+library(rpart.plot)
+
+rm(list=ls())
+```
+
+# Set working directory as needed
+```{r}
+setwd("C:/Users/anave/OneDrive - Universidad Politécnica de Madrid/MUIT/ERASMUS/1_PRIMER_CUATRI/CS422DATAMINING/Assignment7")
+
+df <- read.csv("wifi_localization.csv")
+```
+# Seed the PRNG
+```{r}
+set.seed(1122)
+df <- df[sample(nrow(df)), ] # Shuffle, as all of the data in the .csv file
+                             # is ordered by label!  
+index <- sample(1:nrow(df), 0.20*nrow(df))
+test.df  <- df[index, ]
+train.df <- df[-index, ]
+
+```
+
+# --- Your code goes below ---
+# (a)
+```{r}
+model <- rpart( room~ .,data=df,method= "class")
+rpart.plot(model, extra=104, fallen.leaves=T, type=4, main="WiFi Access Point Decision Tree")
+
+prediction <- predict(model, newdata=test.df, type="class")
+conMatrix <- confusionMatrix(prediction, as.factor(test.df$room))
+conMatrix
+
+cat("Decision tree model", "\n")
+cat("\t", "Sensitivity Class1:", conMatrix$byClass[1,1], "Class2:",conMatrix$byClass[2,1] , "\n","\t","\t", "    Class3:",conMatrix$byClass[3,1], "Class4:", conMatrix$byClass[4,1], "\n" )
+cat("\t", "Specificity Class1:", conMatrix$byClass[1,2], "Class2:",conMatrix$byClass[2,2] , "\n","\t","\t", "    Class3:",conMatrix$byClass[3,2], "Class4:", conMatrix$byClass[4,2], "\n" )
+cat("\t", "PPV         Class1:", conMatrix$byClass[1,3], "Class2:",conMatrix$byClass[2,3] , "\n","\t","\t", "    Class3:",conMatrix$byClass[3,3], "Class4:", conMatrix$byClass[4,3], "\n" )
+cat("\t", "Bal. Acc.   Class1:", conMatrix$byClass[1,11], "Class2:",conMatrix$byClass[2,11] , "\n","\t","\t", "    Class3:",conMatrix$byClass[3,11], "Class4:", conMatrix$byClass[4,11], "\n" )
+
+```
+# (b)
+# Note that in (b) either use a new variable to store the model, or null out
+# the variable that stored the model in (a) if you want to reuse that variable.
+# The reason is that if you don't null it out, the model in (b) will have
+# residual information left over from (a) and your results will not be quite
+# accurate.
+```{r}
+
+x_train <- select(train.df, -room)
+y_train <- train.df$room
+y_train.ohe <- to_categorical(y_train)
+x_test <- select(test.df, -room)
+y_test <- test.df$room
+y_test.ohe <- to_categorical(y_test)
+
+#Creation, train and evaluation
+model_nn <- NULL
+create_model <- function(){
+  model_nn <- keras_model_sequential()
+  model_nn %>%
+    layer_dense(units = 1, activation = 'relu', input_shape = c(7)) %>%
+    layer_dense(units = 5, activation = 'softmax')
+
+model_nn %>% compile(
+  optimizer = 'adam', 
+  loss = 'categorical_crossentropy',
+  metrics = c('accuracy'))
+
+begin <- NULL
+end <- NULL
+begin <- Sys.time()
+
+acc<- model_nn %>% fit(data.matrix(x_train), y_train.ohe, epochs = 100, batch_size= 32, validation_split=0.20, verbose=0)
+
+end <- Sys.time()
+time.to.train <- end-begin
+
+evaluation <- model_nn %>% evaluate(as.matrix(x_test), y_test.ohe)
+
+out<-list(model_nn, time.to.train, acc,evaluation)
+return(out)
+}
+out <- create_model()
+
+model_nn <- out[[1]]
+accur <- out[[3]]
+eval <- out[[4]]
+
+```
+#2.1 b) i)
+```{r}
+cat("For one neuron in hidden layer, loss:", eval[[1]], "Accuracy:", eval[[2]], "\n")
+```
+#2.1 b) ii)
+
+Model accuracy is low because there is only one hidden layer and one neuron in the hidden layer. Adding more hidden layers can help improve the accuracy of a model but only up to a certain point, or instead, adding more neurons would help.
+
+```{r}
+# Plot Model Accuracy
+plot(accur[["metrics"]][["accuracy"]], xlab="Epochs", ylab="Accuracy", main="Model Accuracy", ylim=c(0,1), col="blue", pch=20, type="o")
+points(accur[["metrics"]][["val_accuracy"]], col="grey", pch=20, type="o")
+legend("topright", legend=c("train", "test"),col=c("blue", "grey"), pch=c(20,20))
+#Plot Model Loss
+plot(accur[["metrics"]][["loss"]], xlab="Epochs", ylab="Loss", main="Model Loss", col="blue", pch=20, type="o")
+points(accur[["metrics"]][["val_loss"]], col="grey", pch=20, type="o")
+legend("topright", legend=c("train", "test"),col=c("blue", "grey"), pch=c(20,20))
+
+#Confusion Matrix
+# Prediction
+pred.prob <- predict(model_nn, as.matrix(x_test))
+pred.class <- apply(pred.prob, 1, function(x) which.max(x)-1)
+# Evaluation
+confMatrix <- confusionMatrix(as.factor(pred.class), as.factor(y_test))
+confMatrix
+
+
+```
+#2.1 b) iii)
+```{r}
+print(pred.class)
+```
+I do not observe any clear pattern in the predicted values, more than many '3' predicted values.
+
+2.1 b) iii)
+
+The bias of the model means how far the predictions are from the target. In this case they are really far so the model has a high bias. 
+
+2.1 b) iv)
+
+The more epochs the more accuracy but when a point is reached, the accuracy could start decreasing, hence, we would be overfitting the model. The same happens with lower epochs, that could lead to an underfitting. So I believe adding 100 more epochs could not help in getting better results as we would probably be overfitting the neural network.
+
+# (c) 
+```{r}
+model_nn <- NULL
+out <- NULL
+#Create, train and evaluate to choose neurons
+create_model <- function(u){
+  model_nn <- keras_model_sequential() %>%
+    layer_dense(units=u, activation="relu", input_shape=c(7)) %>%
+    layer_dense(units=5, activation="softmax")
+  
+  model_nn %>% compile(
+    optimizer = 'adam', 
+    loss = 'categorical_crossentropy',
+    metrics = c('accuracy'))
+ 
+  acc<- model_nn %>% fit(data.matrix(x_train), y_train.ohe, epochs = 100, batch_size= 32, validation_split=0.20, verbose=0)
+  
+ evaluation <- model_nn %>% evaluate(as.matrix(x_test), y_test.ohe)
+  
+  out <- list(model_nn, acc, evaluation,u)
+  return(out)
+}
+```
+#2.1 c) i)
+```{r}
+model_nn <- NULL
+out <- NULL
+out <- create_model(6)
+model_nn <- out[[1]]
+accur <- out[[2]]
+eval <- out[[3]]
+units<- out[[4]]
+cat("Best model has", units, " neurons in the hidden layer \n In this model, loss:", eval[[1]], "Accuracy:", eval[[2]], "\n")
+
+```
+#2.1 c) ii)
+
+The bias of the model is lower as the predictions are much closer to the target value.
+
+#2.1 c) iii)
+```{r}
+# Plot Model Accuracy
+plot(accur[["metrics"]][["accuracy"]], xlab="Epochs", ylab="Accuracy", main="Model2 Accuracy", ylim=c(0,1), col="blue", pch=20, type="o")
+points(accur[["metrics"]][["val_accuracy"]], col="grey", pch=20, type="o")
+legend("topright", legend=c("train", "test"),col=c("blue", "grey"), pch=c(20,20))
+#Plot Model Loss
+plot(accur[["metrics"]][["loss"]], xlab="Epochs", ylab="Loss", main="Model2 Loss", col="blue", pch=20, type="o")
+points(accur[["metrics"]][["val_loss"]], col="grey", pch=20, type="o")
+legend("topright", legend=c("train", "test"),col=c("blue", "grey"), pch=c(20,20))
+```
+As seen in the loss graphic, in the epoch 70 both lines converge and it does not overfit. So it could be stopped there.
+
+# (d)
+```{r}
+#Confusion Matrix
+# Prediction
+print(model_nn)
+pred.prob <- predict(model_nn, as.matrix(x_test))
+pred.class <- apply(pred.prob, 1, function(x) which.max(x)-1)
+# Evaluation
+confMatrix <- confusionMatrix(as.factor(pred.class), as.factor(y_test))
+confMatrix
+
+cat("Best Neural Network Model", "\n")
+cat("\t", "Overall accuracy", eval[[2]],"\n")
+
+cat("\t", "Sensitivity Class1:", confMatrix$byClass[1,1], "Class2:",confMatrix$byClass[2,1] , "\n","\t","\t", "    Class3:",confMatrix$byClass[3,1], "Class4:", confMatrix$byClass[4,1], "\n" )
+
+cat("\t", "Specificity Class1:", confMatrix$byClass[1,2], "Class2:",confMatrix$byClass[2,2] , "\n","\t","\t", "    Class3:",confMatrix$byClass[3,2], "Class4:", confMatrix$byClass[4,2], "\n" )
+
+cat("\t", "PPV         Class1:", confMatrix$byClass[1,3], "Class2:",confMatrix$byClass[2,3] , "\n","\t","\t", "    Class3:",confMatrix$byClass[3,3], "Class4:", confMatrix$byClass[4,3], "\n" )
+
+cat("\t", "Bal. Acc.   Class1:", confMatrix$byClass[1,11], "Class2:",confMatrix$byClass[2,11] , "\n","\t","\t", "    Class3:",confMatrix$byClass[3,11], "Class4:", confMatrix$byClass[4,11], "\n" )
+
+```
+# 2.1 d) i) 
+Comparing both outputs in a) and d) it can be seen that decision tree model obtains an accurate prediction (0,97 tree model and 0,9625 neural network) with a less complex model than the neural network.
+
+# 2.1 d) ii) 
+
+When choosing one of these two models for deployment I would choose decision tree because it presents more or less the same accuracy but it is easier to deploy than neural networks that involve more complexity.
