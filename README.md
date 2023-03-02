@@ -1,3 +1,3 @@
 # DataMining
-Data Mining algorithms developed in a course. 
+Data Mining algorithms.
 It includes: Linear Regression, Decision Trees, Clustering, Neural Networks and Association Analysis
